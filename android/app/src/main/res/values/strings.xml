@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">GILNET GPM CONNECT</string>
+    <string name="title_activity_main">GILNET GPM CONNECT</string>
+    <string name="package_name">com.gilnet.gpmconnect</string>
+    <string name="custom_url_scheme">com.gilnet.gpmconnect</string>
+</resources>

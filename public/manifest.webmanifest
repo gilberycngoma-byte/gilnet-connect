@@ -1,0 +1,18 @@
+{
+  "name": "GILNET (GPM) APP",
+  "short_name": "GILNET",
+  "description": "Offline-first property management by GILNET (GPM) APP.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0e9f9e",
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

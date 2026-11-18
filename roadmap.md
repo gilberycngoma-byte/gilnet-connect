@@ -1,0 +1,21 @@
+# GILNET v2.5.0
+- [x] Fresh Cloud accounts, profiles, roles, simultaneous login and staff management
+- [x] Shared offline-first property operations with revision checks and durable outbox
+- [x] Reference dashboard, rooms 1–15, add/edit room details and room search
+- [x] Restaurant POS, derived room folios and comprehensive PDF reports
+- [x] Preserve existing notices, department chat, voice and reservation controls
+- [x] Branding, manual updates, published offline configuration and desktop configuration
+- [x] Seven tests; signed-in simultaneous two-browser login, cash sale and PDF export; phone overflow check
+- [ ] Verify installed-app offline opening and manual update delivery — requires published release and installed app
+- [ ] Package signed Windows installer and Android application — Windows signing/update feed and Android SDK/signing not configured
+- [x] Release safeguards: consent-only worker activation, accurate failed checks, preserved caches and current desktop address
+- [x] Repeatable allowlist-only Windows portable packaging tested; native release instructions added
+- [ ] Verify Account update flow with a property-assigned account — current injected identity has no usable property session
+- [ ] Add and verify PWA install button on login and operations; retain separate Electron packaging
+# v5.3 (Nov 10)
+- [x] Rooms grid like photo (tap card, colours), Front Desk check-in form with PAX/receipts, Restaurant sales form; payment dropdown Cash/Mobile/Visa-Card/Bank/Complimentary
+- [x] Roles: Supervisor + Restaurant; managers/supervisors manage staff and apply updates; others cannot edit profile/password
+- [x] Excel Rooms Sale Report with formulas; Room Check-In Status PDF with preview/print; Housekeeping page with Serviced ✔
+- [ ] Move Reports/Staff/Settings into Account tabs and room add/edit into Settings (Staff/Settings removed from sidebar; Manage Users still in Account list) — next step
+- [ ] Desktop install: add 192px icon + desktop manifest fields; verify install on published app
+- [ ] IndexedDB storage, startup log file, staged background updates — not started

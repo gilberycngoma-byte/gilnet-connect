@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline';"
+    />
+    <title>Secure Supabase Setup</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font: 15px/1.5 "Segoe UI", system-ui, sans-serif;
+        color: #173a36;
+        background: #f7fbf8;
+      }
+
+      body {
+        margin: 0;
+        padding: 32px;
+      }
+
+      main {
+        max-width: 470px;
+        margin: 0 auto;
+        padding: 28px;
+        border: 1px solid #dcebe1;
+        border-radius: 20px;
+        background: #fff;
+        box-shadow: 0 12px 36px rgb(22 66 48 / 8%);
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 20px;
+      }
+
+      img {
+        width: 52px;
+        height: 52px;
+        object-fit: contain;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 21px;
+      }
+
+      p {
+        color: #55706a;
+      }
+
+      label {
+        display: block;
+        margin: 20px 0 7px;
+        font-weight: 600;
+      }
+
+      input {
+        box-sizing: border-box;
+        width: 100%;
+        padding: 12px 14px;
+        border: 1px solid #cadbd1;
+        border-radius: 10px;
+        font: inherit;
+      }
+
+      button {
+        padding: 11px 16px;
+        border: 0;
+        border-radius: 10px;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .save {
+        color: #fff;
+        background: #0e887c;
+      }
+
+      .cancel {
+        color: #355a52;
+        background: #edf5f0;
+      }
+
+      .actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 20px;
+      }
+
+      #status {
+        min-height: 24px;
+        color: #a23838;
+        overflow-wrap: anywhere;
+      }
+
+      .note {
+        padding: 12px;
+        border-radius: 10px;
+        background: #f1f8f3;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="../public/gilnet-logo.png" alt="GILNET" />
+        <div>
+          <h1>Secure Supabase Setup</h1>
+          <div>GILNET GPM CONNECT</div>
+        </div>
+      </header>
+      <p>
+        Enter the project service-role key (legacy <code>service_role</code> JWT or
+        <code>sb_secret_</code> key). It is encrypted for this Windows account and is never
+        included in the installer.
+      </p>
+      <p class="note">
+        This key enables trusted staff administration. Never use a publishable/anon key here,
+        and never add this secret to a <code>VITE_</code> variable.
+      </p>
+      <label for="service-key">Supabase service-role/secret key</label>
+      <input id="service-key" type="password" autocomplete="off" spellcheck="false" />
+      <p id="status" role="status" aria-live="polite"></p>
+      <div class="actions">
+        <button id="cancel" class="cancel" type="button">Close</button>
+        <button id="save" class="save" type="button">Save securely</button>
+      </div>
+    </main>
+    <script>
+      const keyInput = document.getElementById("service-key");
+      const status = document.getElementById("status");
+      const saveButton = document.getElementById("save");
+      const cancelButton = document.getElementById("cancel");
+
+      saveButton.addEventListener("click", async () => {
+        saveButton.disabled = true;
+        status.textContent = "Encrypting and saving locally…";
+        try {
+          await window.gilnetElectron.saveSupabaseServiceRoleKey(keyInput.value);
+          keyInput.value = "";
+          status.textContent = "Saved securely for this Windows account.";
+          setTimeout(() => window.close(), 700);
+        } catch (error) {
+          status.textContent = error instanceof Error ? error.message : "The key could not be saved.";
+          saveButton.disabled = false;
+        }
+      });
+
+      cancelButton.addEventListener("click", () => window.close());
+    </script>
+  </body>
+</html>

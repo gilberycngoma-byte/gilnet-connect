@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1794107620648,
+      "tag": "0000_gpm_shared_property_operations",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794276266821,
+      "tag": "0001_supervisor_restaurant_roles",
+      "breakpoints": true
+    }
+  ]
+}

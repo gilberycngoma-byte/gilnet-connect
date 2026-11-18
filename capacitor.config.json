@@ -1,0 +1,9 @@
+{
+  "appId": "com.gilnet.gpmconnect",
+  "appName": "GILNET GPM CONNECT",
+  "webDir": "dist/client",
+  "bundledWebRuntime": false,
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 3000, "backgroundColor": "#ffffff" }
+  }
+}
