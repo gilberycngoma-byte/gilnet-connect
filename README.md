@@ -1,5 +1,9 @@
 # GILNET GPM CONNECT - Property Management System
 
+## Android download
+
+[Download the GILNET GPM Connect v2.5.7 debug APK](https://github.com/gilberycngoma-byte/gilnet-connect/releases/download/v2.5.7-debug/app-debug.apk). This is a debug-signed test build, not a production update; it may not install over a release-signed app.
+
 ## Current runtime setup
 
 - Copy `.env.example` to `.env` and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. Local Vite development maps these public values to server auth automatically. The Electron build embeds only these public values.
