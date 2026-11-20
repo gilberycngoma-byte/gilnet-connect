@@ -3,6 +3,9 @@
   "version": "2.5.7",
   "productName": "GILNET GPM CONNECT - Property Management System",
   "description": "GILNET GPM CONNECT - Property Management System",
+  "author": {
+    "name": "GILNET GPM CONNECT"
+  },
   "main": "electron/main.cjs",
   "private": true,
   "sideEffects": false,

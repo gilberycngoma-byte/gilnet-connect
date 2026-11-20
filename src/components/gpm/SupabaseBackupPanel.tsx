@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   backupToSupabase,
   findLatestSupabaseBackup,
@@ -22,7 +21,7 @@ const backupSchedules: { value: BackupSchedule; label: string }[] = [
   { value: "daily", label: "Daily" },
   { value: "weekly", label: "Weekly" },
   { value: "monthly", label: "Monthly" },
-  { value: "after_each_entry", label: "Never — back up after every new entry" },
+  { value: "after_each_entry", label: "After every saved entry" },
 ];
 
 type BackupStatus = {
@@ -42,84 +41,6 @@ function saveStatus(code: string, patch: BackupStatus) {
     keys.cloudBackupStatus(code),
     { ...read<BackupStatus>(keys.cloudBackupStatus(code), {}), ...patch },
     false,
-  );
-}
-
-export function CloudBackupRestorePrompt({ propertyCode }: { propertyCode: string }) {
-  const [backup, setBackup] = useState<SupabaseBackupFile | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    let active = true;
-    void findLatestSupabaseBackup(propertyCode)
-      .then((latest) => {
-        if (!active || !latest) return;
-        if (read<string>(keys.cloudBackupSeen(propertyCode), "") !== latest.path) setBackup(latest);
-      })
-      .catch((cause) => {
-        if (!active) return;
-        const message = messageOf(cause);
-        saveStatus(propertyCode, { error: message });
-        setError(message);
-      });
-    return () => {
-      active = false;
-    };
-  }, [propertyCode]);
-
-  const dismiss = () => {
-    if (backup) write(keys.cloudBackupSeen(propertyCode), backup.path, false);
-    setBackup(null);
-    setError("");
-  };
-
-  const restore = async () => {
-    if (!backup) return;
-    setBusy(true);
-    setError("");
-    try {
-      const restored = await restoreFromSupabase(propertyCode, backup.path);
-      write(keys.cloudBackupSeen(propertyCode), backup.path, false);
-      saveStatus(propertyCode, { restoredAt: restored.createdAt, error: undefined });
-      resumeSync();
-      await synchronize();
-      toast.success(`Restored ${restored.recordCount} local data groups.`);
-      setBackup(null);
-    } catch (cause) {
-      setError(messageOf(cause));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <Dialog open={!!backup} onOpenChange={(open) => !open && !busy && dismiss()}>
-      <DialogContent className="rounded-3xl">
-        <DialogHeader>
-          <DialogTitle>Property backup found</DialogTitle>
-        </DialogHeader>
-        {backup && (
-          <p className="text-sm text-muted-foreground">
-            A backup from {new Date(backup.createdAt).toLocaleString()} is available. Restore it to
-            merge its records with this device?
-          </p>
-        )}
-        {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        )}
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" disabled={busy} onClick={restore}>
-            {busy ? "Restoring…" : "Restore backup"}
-          </Button>
-          <Button type="button" variant="outline" disabled={busy} onClick={dismiss}>
-            Not now
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -230,7 +151,6 @@ export function SupabaseBackupPanel({ propertyCode }: { propertyCode: string }) 
         p_record_count: result.recordCount,
       });
       setLatest({ path: result.path, createdAt: result.createdAt });
-      write(keys.cloudBackupSeen(propertyCode), result.path, false);
       if (result.localFolder) {
         write(keys.propertyFolder(propertyCode), result.localFolder, false);
       }
@@ -283,7 +203,6 @@ export function SupabaseBackupPanel({ propertyCode }: { propertyCode: string }) 
     setError("");
     try {
       const restored = await restoreFromSupabase(propertyCode, latest.path);
-      write(keys.cloudBackupSeen(propertyCode), latest.path, false);
       saveStatus(propertyCode, { restoredAt: restored.createdAt, error: undefined });
       resumeSync();
       await synchronize();
@@ -339,7 +258,7 @@ export function SupabaseBackupPanel({ propertyCode }: { propertyCode: string }) 
           </select>
         </label>
         <p className="text-xs text-muted-foreground">
-          The “Never” option follows your requested setup: a new saved entry queues a backup, which
+          Backups run in the background. “After every saved entry” queues a server-side backup that
           runs within about a minute. Only the property Admin can change this plan.
         </p>
         {canSetSchedule && (

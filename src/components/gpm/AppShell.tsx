@@ -26,7 +26,7 @@ import {
 import { can, homeFor, logout, useSession, type Action } from "@/lib/auth";
 import { keys, useStored } from "@/lib/db";
 import { supabase } from "@/integrations/supabase/client";
-import { applyTheme, DEFAULT_APP_PREFERENCES, type AppPreferences } from "@/lib/app-preferences";
+import { applyTheme, getDefaultAppPreferences, type AppPreferences } from "@/lib/app-preferences";
 import { migrateLocalData } from "@/lib/migrate";
 import { resolveSyncConflict, startSyncLoop, type SyncConflicts } from "@/lib/supabaseSync";
 import {
@@ -36,11 +36,14 @@ import {
   compareVersions,
   fetchLatestVersion,
 } from "@/lib/version";
-import { DEPARTMENTS, type Message, type Property } from "@/lib/types";
+import { deptForRole, type Department, type Message, type Notice, type Property } from "@/lib/types";
+import { countUnreadMessagesForStaff } from "@/lib/message-unread";
+import { countUnreadNotices } from "@/lib/notice-visibility";
+import { getElectronBridge } from "@/lib/electron";
 import { cn } from "@/lib/utils";
 import { InstallAppButton } from "./InstallApp";
+import { FloatingActionBubbles } from "./FloatingActionBubbles";
 import { PropertyHeader } from "./PropertyHeader";
-import { CloudBackupRestorePrompt } from "./SupabaseBackupPanel";
 import { initializePropertyFolder } from "@/lib/propertyFolder";
 import { UserAgreementGate } from "@/components/gpm/UserAgreement";
 import { SyncStatusNotice } from "./SyncStatusNotice";
@@ -73,14 +76,10 @@ export function useUpdateAvailable() {
   return avail;
 }
 
-export function useUnreadTotal(code: string) {
-  let total = 0;
-  for (const d of DEPARTMENTS) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const list = useStored<Message[]>(keys.messages(code, d), []);
-    total += list.filter((m) => !m.is_read).length;
-  }
-  return total;
+export function useUnreadTotal(code: string, department: Department, staffId: string) {
+  const departmentMessages = useStored<Message[]>(keys.messages(code, department), []);
+  const broadcastMessages = useStored<Message[]>(keys.messages(code, "All Staff"), []);
+  return countUnreadMessagesForStaff(departmentMessages, broadcastMessages, staffId);
 }
 
 function SyncConflictReview({ code }: { code: string }) {
@@ -221,13 +220,41 @@ function AppShellContent({
   const path = useRouterState({ select: (s) => s.location.pathname });
   const code = session?.property_code ?? "";
   const staffId = session?.staff_id ?? session?.token ?? "";
-  const preferences = useStored<AppPreferences>(
+  const savedPreferences = useStored<Partial<AppPreferences>>(
     keys.appPreferences(code, staffId),
-    DEFAULT_APP_PREFERENCES,
+    {},
   );
+  const preferences = {
+    ...getDefaultAppPreferences(session?.role),
+    ...savedPreferences,
+  };
   const property = useStored<Property | null>(keys.property(code), null);
   const propertyImage = property?.profile_image_url || property?.image_url;
-  const unread = useUnreadTotal(code);
+  const unread = useUnreadTotal(code, deptForRole(session?.role), staffId);
+  const notices = useStored<Notice[]>(keys.notices(code), []);
+  const noticeUnread = countUnreadNotices(
+    notices,
+    session.role,
+    preferences.checkInNotices,
+    session.user_email,
+  );
+  useEffect(() => {
+    const electron = getElectronBridge();
+    if (!electron) return;
+    electron.setBubbles({
+      attendance: preferences.floatingAttendanceBubble,
+      messages: preferences.floatingMessagesBubble,
+      notices: preferences.floatingNoticesBubble,
+      messagesUnread: unread,
+      noticesUnread: noticeUnread,
+    });
+  }, [
+    noticeUnread,
+    preferences.floatingAttendanceBubble,
+    preferences.floatingMessagesBubble,
+    preferences.floatingNoticesBubble,
+    unread,
+  ]);
   const updateAvail = useUpdateAvailable();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
@@ -351,7 +378,6 @@ function AppShellContent({
 
   return (
     <div className="gpm-mobile-shell flex min-h-screen bg-background">
-      {can(session.role, "users") && <CloudBackupRestorePrompt propertyCode={code} />}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground p-4 md:flex">
         <PropertyHeader code={code} property={property} />
         <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/60">
@@ -648,6 +674,13 @@ function AppShellContent({
           </div>
         </SheetContent>
       </Sheet>
+      <FloatingActionBubbles
+        propertyCode={code}
+        role={session.role}
+        userEmail={session.user_email}
+        messageUnread={unread}
+        preferences={preferences}
+      />
     </div>
   );
 }

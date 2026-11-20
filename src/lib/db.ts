@@ -276,7 +276,6 @@ export const keys = {
   appVersion: (c: string) => `gilnet_cloud250_app_version_${c}`,
   propertyFolder: (c: string) => `gilnet_cloud250_property_folder_${c}`,
   cloudBackupStatus: (c: string) => `gilnet_cloud250_backup_status_${c}`,
-  cloudBackupSeen: (c: string) => `gilnet_cloud250_backup_seen_${c}`,
   driveClientId: "gilnet_google_drive_client_id",
   session: "gilnet_cloud250_session",
   remembered: "gilnet_cloud250_remembered",

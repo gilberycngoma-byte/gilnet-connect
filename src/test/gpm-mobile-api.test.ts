@@ -12,9 +12,14 @@ vi.mock("@capacitor/core", () => ({
 import { invokeGpmMobileApi } from "@/lib/gpmMobileApi";
 import {
   attendanceBoard,
+  attendanceNetworkStatus,
+  addAttendanceNetwork,
   checkIn,
   checkOut,
+  currentAttendanceNetworkIp,
   deleteWorkShift,
+  deleteAttendanceNetwork,
+  listAttendanceNetworks,
   listWorkShifts,
   saveWorkShift,
 } from "@/lib/attendance.functions";
@@ -62,6 +67,11 @@ describe("GILNET mobile API errors", () => {
     await attendanceBoard({ data: boardInput });
     await checkIn();
     await checkOut();
+    await attendanceNetworkStatus();
+    await listAttendanceNetworks();
+    await currentAttendanceNetworkIp();
+    await addAttendanceNetwork({ data: { label: "Office Wi-Fi" } });
+    await deleteAttendanceNetwork({ data: { id: "00000000-0000-4000-8000-000000000001" } });
     await listWorkShifts({ data: { date: boardInput.date } });
     await saveWorkShift({ data: shiftInput });
     await deleteWorkShift({ data: { id: "00000000-0000-4000-8000-000000000001" } });
@@ -70,6 +80,11 @@ describe("GILNET mobile API errors", () => {
       "attendance_board",
       "attendance_check_in",
       "attendance_check_out",
+      "attendance_network_status",
+      "list_attendance_networks",
+      "current_attendance_network_ip",
+      "add_attendance_network",
+      "delete_attendance_network",
       "list_work_shifts",
       "save_work_shift",
       "delete_work_shift",

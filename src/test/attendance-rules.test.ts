@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   attendanceState,
   defaultDepartmentForRole,
+  ipMatches,
+  isOnCompanyNetwork,
   isLate,
   lateMinutes,
   lusakaParts,
@@ -44,5 +46,12 @@ describe("attendance rules", () => {
     expect(defaultDepartmentForRole("Restaurant")).toBe("Food and Beverage");
     expect(defaultDepartmentForRole("Housekeeping")).toBe("Housekeeping");
     expect(defaultDepartmentForRole("Manager")).toBe("Admin");
+  });
+
+  it("matches IPv4 exactly and allows phones within the office IPv6 /64", () => {
+    expect(ipMatches("41.72.100.5", "41.72.100.5")).toBe(true);
+    expect(ipMatches("41.72.100.6", "41.72.100.5")).toBe(false);
+    expect(ipMatches("2c0f:fe38:2101:1::abcd", "2c0f:fe38:2101:1:1111:2222:3333:4444")).toBe(true);
+    expect(isOnCompanyNetwork(null, ["41.72.100.5"])).toBe(false);
   });
 });

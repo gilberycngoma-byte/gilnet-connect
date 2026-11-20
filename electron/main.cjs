@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain, Menu, safeStorage, shell } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, Menu, safeStorage, screen, shell } = require("electron");
 const fsSync = require("node:fs");
 const fs = require("node:fs/promises");
 const path = require("path");
@@ -41,6 +41,7 @@ process.on("exit", (code) => logStartup(`Process exiting with code ${code}`));
 
 const { autoUpdater } = require("electron-updater");
 let mainWindow = null;
+let bubbleWindow = null;
 let serviceKeyWindow = null;
 let localAppServer = null;
 let closeRequested = false;
@@ -114,6 +115,65 @@ ipcMain.handle("gilnet-auth-open-url", async (event, value) => {
     throw new Error("The Supabase sign-in address could not be verified.");
   }
   await shell.openExternal(value);
+});
+
+function createBubbleWindow() {
+  if (bubbleWindow && !bubbleWindow.isDestroyed()) return;
+  bubbleWindow = new BrowserWindow({
+    width: 64,
+    height: 180,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    resizable: false,
+    movable: true,
+    hasShadow: false,
+    focusable: false,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      preload: path.join(__dirname, "bubble-preload.cjs"),
+    },
+  });
+  bubbleWindow.setIgnoreMouseEvents(false);
+  bubbleWindow.setMenu(null);
+  const bounds = bubbleWindow.getBounds();
+  bubbleWindow.setPosition(
+    Math.max(0, screen.getPrimaryDisplay().workAreaSize.width - bounds.width - 20),
+    Math.max(0, screen.getPrimaryDisplay().workAreaSize.height - 220),
+  );
+  void bubbleWindow.loadFile(path.join(__dirname, "bubbles.html")).catch((error) => {
+    logStartup("Could not load desktop quick-access bubbles", error);
+  });
+}
+
+function openMainRoute(route) {
+  if (!["/attendance", "/messages", "/notices"].includes(route)) return;
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+  const target = new URL(appUrl);
+  target.pathname = route;
+  target.search = "";
+  void mainWindow.loadURL(target.toString());
+}
+
+ipcMain.on("gilnet-open-bubble-route", (event, route) => {
+  if (event.sender !== bubbleWindow?.webContents) return;
+  openMainRoute(route);
+});
+
+ipcMain.on("gilnet-set-bubbles", (event, value) => {
+  try {
+    assertTrustedRenderer(event);
+  } catch {
+    return;
+  }
+  if (!bubbleWindow || bubbleWindow.isDestroyed()) createBubbleWindow();
+  bubbleWindow?.webContents.send("gilnet-bubble-state", value);
 });
 ipcMain.handle("gilnet-auth-register-listener", (event) => {
   assertTrustedRenderer(event);
@@ -507,17 +567,10 @@ if (!hasSingleInstanceLock) {
         authCallbackListenerReady = false;
       });
       main.on("close", (event) => {
-        if (isQuitting || !closeBackupReady) return;
+        if (isQuitting) return;
         event.preventDefault();
-        if (closeRequested) return;
-        closeRequested = true;
-        main.webContents.send("gilnet-before-close");
-        closeBackupTimeout = setTimeout(() => {
-          console.error("Desktop backup before close timed out; closing the app.");
-          isQuitting = true;
-          main.destroy();
-          app.quit();
-        }, 10000);
+        main.hide();
+        if (!bubbleWindow || bubbleWindow.isDestroyed()) createBubbleWindow();
       });
 
       const showOfflineFallback = () => {

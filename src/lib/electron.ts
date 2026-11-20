@@ -32,6 +32,13 @@ export type GilnetElectron = {
   restoreDrive: (clientId: string, propertyCode: string) => Promise<DriveBackup | null>;
   saveSupabaseServiceRoleKey: (key: string) => Promise<void>;
   openOAuthUrl: (url: string) => Promise<void>;
+  setBubbles: (state: {
+    attendance: boolean;
+    messages: boolean;
+    notices: boolean;
+    messagesUnread: number;
+    noticesUnread: number;
+  }) => void;
   onAuthCallback: (callback: (url: string) => void) => Promise<() => void>;
 };
 

@@ -137,7 +137,7 @@ export function AppPreferencesPanel() {
         />
       </label>
 
-      <label className="flex items-center justify-between gap-4">
+      <label className="flex items-center justify-between gap-4 border-b border-brand-border pb-4">
         <span>
           <span className="text-sm font-semibold">Desktop notifications</span>
           <span className="mt-1 block text-xs text-muted-foreground">
@@ -150,6 +150,61 @@ export function AppPreferencesPanel() {
           aria-label="Desktop notifications"
         />
       </label>
+
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold">Floating quick-access bubbles</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Show shortcuts for attendance, messages, and notices. These settings are saved for your
+            staff login on this device.
+          </p>
+        </div>
+        <label className="flex items-center justify-between gap-4">
+          <span className="text-sm font-medium">Staff attendance bubble</span>
+          <Switch
+            checked={preferences.floatingAttendanceBubble}
+            onCheckedChange={(enabled) =>
+              updateAppPreferences(
+                propertyCode,
+                staffId,
+                { floatingAttendanceBubble: enabled },
+                session?.role,
+              )
+            }
+            aria-label="Staff attendance bubble"
+          />
+        </label>
+        <label className="flex items-center justify-between gap-4">
+          <span className="text-sm font-medium">Messages bubble</span>
+          <Switch
+            checked={preferences.floatingMessagesBubble}
+            onCheckedChange={(enabled) =>
+              updateAppPreferences(
+                propertyCode,
+                staffId,
+                { floatingMessagesBubble: enabled },
+                session?.role,
+              )
+            }
+            aria-label="Messages bubble"
+          />
+        </label>
+        <label className="flex items-center justify-between gap-4">
+          <span className="text-sm font-medium">Notices bubble</span>
+          <Switch
+            checked={preferences.floatingNoticesBubble}
+            onCheckedChange={(enabled) =>
+              updateAppPreferences(
+                propertyCode,
+                staffId,
+                { floatingNoticesBubble: enabled },
+                session?.role,
+              )
+            }
+            aria-label="Notices bubble"
+          />
+        </label>
+      </div>
     </section>
   );
 }

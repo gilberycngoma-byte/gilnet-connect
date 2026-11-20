@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld("gilnetElectron", {
   saveSupabaseServiceRoleKey: (key) =>
     ipcRenderer.invoke("gilnet-save-supabase-service-role-key", key),
   openOAuthUrl: (url) => ipcRenderer.invoke("gilnet-auth-open-url", url),
+  setBubbles: (state) => ipcRenderer.send("gilnet-set-bubbles", state),
   onAuthCallback: async (callback) => {
     const listener = (_event, url) => callback(url);
     ipcRenderer.on("gilnet-auth-callback", listener);

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/gpm/AppShell";
 import { AttendancePanel } from "@/components/gpm/AttendancePanel";
+import { AttendanceNetworkSettings } from "@/components/gpm/AttendanceNetworkSettings";
 import { AttendanceShiftSettings } from "@/components/gpm/AttendanceShiftSettings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -307,6 +308,7 @@ export function StaffPage() {
           <AttendancePanel />
         </section>
         {(session?.role === "Admin" || session?.role === "Manager") && <AttendanceShiftSettings />}
+        {session?.role === "Admin" && <AttendanceNetworkSettings />}
       </div>
     </AppShell>
   );

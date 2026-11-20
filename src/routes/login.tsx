@@ -126,6 +126,29 @@ function LoginPageContent() {
       sessionStorage.removeItem("gilnet_password_recovery_error");
       throw new Error(storedError);
     }
+    const url = new URL(window.location.href);
+    const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
+    const callbackError =
+      url.searchParams.get("error_description") ||
+      url.searchParams.get("error") ||
+      hashParams.get("error_description") ||
+      hashParams.get("error");
+    if (callbackError) throw new Error(callbackError);
+
+    const accessToken = url.searchParams.get("access_token") ?? hashParams.get("access_token");
+    const refreshToken = url.searchParams.get("refresh_token") ?? hashParams.get("refresh_token");
+    const code = url.searchParams.get("code") ?? hashParams.get("code");
+    if (accessToken && refreshToken) {
+      const { error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+      if (error) throw error;
+    } else if (code) {
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) throw error;
+    }
+
     const { data, error: sessionError } = await supabase.auth.getSession();
     if (sessionError) throw sessionError;
     if (!data.session?.user) {

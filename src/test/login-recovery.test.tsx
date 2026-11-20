@@ -6,6 +6,7 @@ const {
   navigate,
   resetPasswordForEmail,
   getSession,
+  exchangeCodeForSession,
   from,
   getCurrentUser,
   getRemembered,
@@ -14,6 +15,7 @@ const {
   navigate: vi.fn(),
   resetPasswordForEmail: vi.fn(),
   getSession: vi.fn(),
+  exchangeCodeForSession: vi.fn(),
   from: vi.fn(),
   getCurrentUser: vi.fn(),
   getRemembered: vi.fn(),
@@ -23,6 +25,8 @@ const {
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (options: unknown) => options,
   useNavigate: () => navigate,
+  Link: ({ to, children, ...props }: { to: string; children: ReactNode } & Record<string, unknown>) =>
+    <a href={to} {...props}>{children}</a>,
 }));
 
 vi.mock("@capacitor/app", () => ({
@@ -66,6 +70,7 @@ vi.mock("@/integrations/supabase/client", () => ({
     auth: {
       resetPasswordForEmail,
       getSession,
+      exchangeCodeForSession,
       getUser: vi.fn(),
       updateUser: vi.fn(),
       verifyOtp: vi.fn(),
@@ -90,6 +95,7 @@ beforeEach(() => {
   navigate.mockReset();
   resetPasswordForEmail.mockReset().mockResolvedValue({ error: null });
   getSession.mockReset();
+  exchangeCodeForSession.mockReset().mockResolvedValue({ error: null });
   from.mockReset();
   getCurrentUser.mockReset().mockReturnValue(null);
   getRemembered.mockReset().mockReturnValue(null);
@@ -138,5 +144,31 @@ describe("password recovery links", () => {
     await screen.findByLabelText("New password");
     expect(screen.queryByLabelText(/recovery code/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText("Property Code")).toHaveValue("");
+  });
+
+  it("exchanges a recovery authorization code before loading the account", async () => {
+    window.history.replaceState(null, "", "/login?type=recovery&code=reset-code");
+    exchangeCodeForSession.mockResolvedValue({
+      data: { session: { user: { id: "staff-id", email: "staff@example.com" } } },
+      error: null,
+    });
+    getSession.mockResolvedValue({
+      data: { session: { user: { id: "staff-id", email: "staff@example.com" } } },
+      error: null,
+    });
+    const single = vi.fn().mockResolvedValue({
+      data: { property_code: "TEST001", role: "Front Desk" },
+      error: null,
+    });
+    from.mockReturnValue({
+      select: () => ({
+        eq: () => ({ single }),
+      }),
+    });
+
+    render(<LoginPage />);
+
+    await screen.findByLabelText("New password");
+    expect(exchangeCodeForSession).toHaveBeenCalledWith("reset-code");
   });
 });

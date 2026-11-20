@@ -14,6 +14,9 @@ vi.mock("@/components/gpm/AttendancePanel", () => ({ AttendancePanel: () => null
 vi.mock("@/components/gpm/AttendanceShiftSettings", () => ({
   AttendanceShiftSettings: () => null,
 }));
+vi.mock("@/components/gpm/AttendanceNetworkSettings", () => ({
+  AttendanceNetworkSettings: () => null,
+}));
 vi.mock("@/lib/auth", () => ({
   useSession: () => ({ property_code: "TEST001", role: "Admin", token: "admin-id" }),
 }));

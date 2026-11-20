@@ -56,7 +56,6 @@ export function AttendancePanel() {
         },
       }),
   });
-
   const ownAttendance = data?.rows.find((row) => row.user_id === staffId);
   const isToday = date === currentAttendanceDate();
   const ownDepartment =
@@ -105,8 +104,7 @@ export function AttendancePanel() {
             is_check_in_notice: true,
           });
         }
-      }
-      else await checkOut();
+      } else await checkOut();
       await refetch();
       toast.success(action === "checkIn" ? "Attendance recorded." : "Check-out recorded.");
     } catch (cause) {
@@ -162,7 +160,12 @@ export function AttendancePanel() {
         <div className="ml-auto flex gap-2">
           <Button
             className="rounded-full"
-            disabled={busy || isPending || !canPunch || !!ownAttendance}
+            disabled={
+              busy ||
+              isPending ||
+              !canPunch ||
+              !!ownAttendance
+            }
             onClick={() => void run("checkIn")}
           >
             <LogIn className="mr-1 h-4 w-4" />
@@ -171,7 +174,12 @@ export function AttendancePanel() {
           <Button
             variant="outline"
             className="rounded-full"
-            disabled={busy || !canPunch || !ownAttendance || !!ownAttendance.check_out}
+            disabled={
+              busy ||
+              !canPunch ||
+              !ownAttendance ||
+              !!ownAttendance.check_out
+            }
             onClick={() => void run("checkOut")}
           >
             <LogOut className="mr-1 h-4 w-4" />

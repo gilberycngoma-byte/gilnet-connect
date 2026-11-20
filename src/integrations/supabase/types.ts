@@ -285,6 +285,41 @@ export type Database = {
         };
         Relationships: [];
       };
+      allowed_networks: {
+        Row: {
+          created_at: string;
+          created_by: string;
+          id: string;
+          ip_address: string;
+          label: string;
+          property_code: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by: string;
+          id?: string;
+          ip_address: string;
+          label: string;
+          property_code: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string;
+          id?: string;
+          ip_address?: string;
+          label?: string;
+          property_code?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "allowed_networks_property_code_fkey";
+            columns: ["property_code"];
+            isOneToOne: false;
+            referencedRelation: "properties";
+            referencedColumns: ["code"];
+          },
+        ];
+      };
       properties: {
         Row: {
           address: string;
@@ -464,12 +499,16 @@ export type Database = {
         Returns: string;
       };
       gpm_check_in: {
-        Args: never;
+        Args: { p_client_ip: string; p_user_id: string };
         Returns: Database["public"]["Tables"]["staff_attendance"]["Row"];
       };
       gpm_check_out: {
-        Args: never;
+        Args: { p_client_ip: string; p_user_id: string };
         Returns: Database["public"]["Tables"]["staff_attendance"]["Row"];
+      };
+      gpm_is_attendance_network_allowed: {
+        Args: { p_client_ip: string; p_property_code: string };
+        Returns: boolean;
       };
       gpm_property: { Args: never; Returns: string };
       gpm_role: { Args: never; Returns: string };

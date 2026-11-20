@@ -6,6 +6,9 @@ export type AppPreferences = {
   messageNotifications: boolean;
   desktopNotifications: boolean;
   checkInNotices: boolean;
+  floatingAttendanceBubble: boolean;
+  floatingMessagesBubble: boolean;
+  floatingNoticesBubble: boolean;
 };
 
 export const DEFAULT_APP_PREFERENCES: AppPreferences = {
@@ -13,16 +16,16 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   messageNotifications: true,
   desktopNotifications: false,
   checkInNotices: false,
+  floatingAttendanceBubble: true,
+  floatingMessagesBubble: true,
+  floatingNoticesBubble: true,
 };
 
 export function getDefaultAppPreferences(role?: Role): AppPreferences {
   return {
     ...DEFAULT_APP_PREFERENCES,
     checkInNotices:
-      role === "Front Desk" ||
-      role === "Admin" ||
-      role === "Manager" ||
-      role === "Supervisor",
+      role === "Front Desk" || role === "Admin" || role === "Manager" || role === "Supervisor",
   };
 }
 

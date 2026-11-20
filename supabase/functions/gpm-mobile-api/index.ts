@@ -62,6 +62,7 @@ type SaveWorkShiftInput = {
   reporting_time: string;
   grace_minutes: number;
 };
+type AttendanceNetworkInput = { label: string };
 type OwnStaffPinInput = {
   currentPin?: string;
   newPin: string;
@@ -78,9 +79,7 @@ const attendanceDepartments = [
   "Admin",
 ] as const;
 const attendanceShiftPatterns = ["Morning and Night", "Morning and Afternoon"] as const;
-function isAttendanceShiftPattern(
-  value: string,
-): value is SaveWorkShiftInput["shift_pattern"] {
+function isAttendanceShiftPattern(value: string): value is SaveWorkShiftInput["shift_pattern"] {
   return attendanceShiftPatterns.some((pattern) => pattern === value);
 }
 const attendanceSelect =
@@ -179,6 +178,27 @@ function parseDeleteWorkShiftInput(value: unknown) {
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
   ) {
     throw apiError(400, "The reporting-time ID is invalid.");
+  }
+  return { id };
+}
+
+function parseAttendanceNetworkInput(value: unknown): AttendanceNetworkInput {
+  if (!isRecord(value)) throw apiError(400, "The office Wi-Fi request is invalid.");
+  const label = optionalString(value["label"], "Network name");
+  if (!label || label.length > 60) {
+    throw apiError(400, "Enter an office Wi-Fi name between 1 and 60 characters.");
+  }
+  return { label };
+}
+
+function parseAttendanceNetworkId(value: unknown) {
+  if (!isRecord(value)) throw apiError(400, "The office Wi-Fi request is invalid.");
+  const id = optionalString(value["id"], "Network ID");
+  if (
+    !id ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
+  ) {
+    throw apiError(400, "The office Wi-Fi ID is invalid.");
   }
   return { id };
 }
@@ -285,18 +305,6 @@ async function createClients() {
   return admin;
 }
 
-function createCallerClient(accessToken: string) {
-  const url = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!url || !serviceRoleKey) {
-    throw apiError(500, "Staff services are not configured on the server.");
-  }
-  return createClient(url, serviceRoleKey, {
-    global: { headers: { Authorization: `Bearer ${accessToken}` } },
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-}
-
 async function getCaller(
   request: Request,
   admin: ReturnType<typeof createClient>,
@@ -323,6 +331,104 @@ function requireManager(caller: Caller) {
   if (!["Admin", "Manager", "Supervisor"].includes(caller.role)) {
     throw apiError(403, "Only an administrator, manager or supervisor can manage staff.");
   }
+}
+
+function requireAttendanceAdmin(caller: Caller) {
+  if (caller.role !== "Admin")
+    throw apiError(403, "Only the property Admin can manage office Wi-Fi.");
+}
+
+function requestClientIp(request: Request) {
+  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const ip =
+    request.headers.get("cf-connecting-ip")?.trim() ||
+    forwarded ||
+    request.headers.get("x-real-ip")?.trim() ||
+    "";
+  if (!ip || !/^[0-9a-fA-F:.]+$/.test(ip)) return null;
+  return ip.toLowerCase().startsWith("::ffff:") && ip.includes(".") ? ip.slice(7) : ip;
+}
+
+function requiredRequestClientIp(request: Request) {
+  const ip = requestClientIp(request);
+  if (!ip)
+    throw apiError(
+      403,
+      "Could not detect your network address. Connect to office Wi-Fi and try again.",
+    );
+  return ip;
+}
+
+async function loadAttendanceNetworkStatus(
+  admin: ReturnType<typeof createClient>,
+  caller: Caller,
+  request: Request,
+) {
+  const ip = requestClientIp(request);
+  const { count, error: countError } = await admin
+    .from("allowed_networks")
+    .select("id", { count: "exact", head: true })
+    .eq("property_code", caller.propertyCode);
+  if (countError) throw countError;
+  if (!ip) return { configured: (count ?? 0) > 0, allowed: false };
+
+  const { data: allowed, error } = await admin.rpc("gpm_is_attendance_network_allowed", {
+    p_property_code: caller.propertyCode,
+    p_client_ip: ip,
+  });
+  if (error) throw error;
+  return { configured: (count ?? 0) > 0, allowed: allowed === true };
+}
+
+async function listAttendanceNetworks(admin: ReturnType<typeof createClient>, caller: Caller) {
+  requireAttendanceAdmin(caller);
+  const { data, error } = await admin
+    .from("allowed_networks")
+    .select("id,label,ip_address,created_at")
+    .eq("property_code", caller.propertyCode)
+    .order("created_at");
+  if (error) throw error;
+  return data ?? [];
+}
+
+async function addAttendanceNetwork(
+  admin: ReturnType<typeof createClient>,
+  caller: Caller,
+  request: Request,
+  input: AttendanceNetworkInput,
+) {
+  requireAttendanceAdmin(caller);
+  const ip = requiredRequestClientIp(request);
+  const { data, error } = await admin
+    .from("allowed_networks")
+    .insert({
+      property_code: caller.propertyCode,
+      label: input.label,
+      ip_address: ip,
+      created_by: caller.id,
+    })
+    .select("id")
+    .single();
+  if (error) {
+    if (error.code === "23505") throw apiError(409, "This office network is already allowed.");
+    throw apiError(400, "Could not save this office Wi-Fi address.");
+  }
+  return { id: data.id };
+}
+
+async function deleteAttendanceNetwork(
+  admin: ReturnType<typeof createClient>,
+  caller: Caller,
+  id: string,
+) {
+  requireAttendanceAdmin(caller);
+  const { error } = await admin
+    .from("allowed_networks")
+    .delete()
+    .eq("id", id)
+    .eq("property_code", caller.propertyCode);
+  if (error) throw error;
+  return { ok: true };
 }
 
 async function loadAttendanceBoard(
@@ -402,16 +508,28 @@ async function loadAttendanceBoard(
   };
 }
 
-async function checkAttendanceIn(request: Request) {
-  const client = createCallerClient(getAccessToken(request));
-  const { data, error } = await client.rpc("gpm_check_in");
+async function checkAttendanceIn(
+  admin: ReturnType<typeof createClient>,
+  caller: Caller,
+  _request: Request,
+) {
+  const { data, error } = await admin.rpc("gpm_check_in", {
+    p_user_id: caller.id,
+    p_client_ip: null,
+  });
   if (error) throw error;
   return data as AttendanceRow;
 }
 
-async function checkAttendanceOut(request: Request) {
-  const client = createCallerClient(getAccessToken(request));
-  const { data, error } = await client.rpc("gpm_check_out");
+async function checkAttendanceOut(
+  admin: ReturnType<typeof createClient>,
+  caller: Caller,
+  _request: Request,
+) {
+  const { data, error } = await admin.rpc("gpm_check_out", {
+    p_user_id: caller.id,
+    p_client_ip: null,
+  });
   if (error) throw error;
   return data as AttendanceRow;
 }
@@ -993,9 +1111,26 @@ Deno.serve(async (request) => {
     } else if (body["action"] === "attendance_board") {
       result = await loadAttendanceBoard(admin, caller, parseAttendanceBoardInput(body["data"]));
     } else if (body["action"] === "attendance_check_in") {
-      result = await checkAttendanceIn(request);
+      result = await checkAttendanceIn(admin, caller, request);
     } else if (body["action"] === "attendance_check_out") {
-      result = await checkAttendanceOut(request);
+      result = await checkAttendanceOut(admin, caller, request);
+    } else if (body["action"] === "attendance_network_status") {
+      result = await loadAttendanceNetworkStatus(admin, caller, request);
+    } else if (body["action"] === "list_attendance_networks") {
+      result = await listAttendanceNetworks(admin, caller);
+    } else if (body["action"] === "current_attendance_network_ip") {
+      requireAttendanceAdmin(caller);
+      result = { ip: requestClientIp(request) };
+    } else if (body["action"] === "add_attendance_network") {
+      result = await addAttendanceNetwork(
+        admin,
+        caller,
+        request,
+        parseAttendanceNetworkInput(body["data"]),
+      );
+    } else if (body["action"] === "delete_attendance_network") {
+      const { id } = parseAttendanceNetworkId(body["data"]);
+      result = await deleteAttendanceNetwork(admin, caller, id);
     } else if (body["action"] === "list_work_shifts") {
       const { date } = parseAttendanceBoardInput(body["data"]);
       result = await listWorkShifts(admin, caller, date);

@@ -1,6 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { visibleNoticesFor } from "@/components/gpm/notices";
-import { getDefaultAppPreferences } from "@/lib/app-preferences";
+import {
+  getAppPreferences,
+  getDefaultAppPreferences,
+  updateAppPreferences,
+} from "@/lib/app-preferences";
+import { countUnreadNotices } from "@/lib/notice-visibility";
 import type { Notice } from "@/lib/types";
 
 const notices: Notice[] = [
@@ -49,6 +54,10 @@ const notices: Notice[] = [
   },
 ];
 
+afterEach(() => {
+  localStorage.clear();
+});
+
 describe("check-in notice preferences", () => {
   it("defaults reception and management roles on, and other roles off", () => {
     for (const role of ["Front Desk", "Admin", "Manager", "Supervisor"] as const) {
@@ -67,5 +76,29 @@ describe("check-in notice preferences", () => {
       "check-in",
       "general",
     ]);
+  });
+
+  it("counts only visible, incomplete notices the current staff member has not seen", () => {
+    const seenNotice = { ...notices[1], seen_by: ["staff@example.com"] };
+    expect(
+      countUnreadNotices([notices[0], seenNotice], "Housekeeping", false, "staff@example.com"),
+    ).toBe(0);
+    expect(countUnreadNotices(notices, "Housekeeping", true, "staff@example.com")).toBe(2);
+  });
+
+  it("enables floating bubbles by default and stores each staff member's choice", () => {
+    expect(getDefaultAppPreferences("Admin")).toMatchObject({
+      floatingAttendanceBubble: true,
+      floatingMessagesBubble: true,
+      floatingNoticesBubble: true,
+    });
+
+    updateAppPreferences("HOTEL1", "staff-1", { floatingMessagesBubble: false }, "Admin");
+
+    expect(getAppPreferences("HOTEL1", "staff-1", "Admin")).toMatchObject({
+      floatingAttendanceBubble: true,
+      floatingMessagesBubble: false,
+      floatingNoticesBubble: true,
+    });
   });
 });

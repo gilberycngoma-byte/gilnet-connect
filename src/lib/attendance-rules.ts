@@ -57,3 +57,41 @@ export function defaultDepartmentForRole(role?: string | null): string {
       return "Front Office";
   }
 }
+
+function expandIpv6(ip: string): string[] | null {
+  const [head = "", tail, extra] = ip.split("::");
+  if (extra !== undefined) return null;
+  const leading = head ? head.split(":") : [];
+  const trailing = tail ? tail.split(":") : [];
+  const missing = 8 - leading.length - trailing.length;
+  if (tail === undefined ? leading.length !== 8 : missing < 0) return null;
+  return [...leading, ...Array(tail === undefined ? 0 : missing).fill("0"), ...trailing].map(
+    (part) => part.padStart(4, "0"),
+  );
+}
+
+function normalizeIp(ip: string) {
+  const normalized = ip.trim().toLowerCase();
+  return normalized.startsWith("::ffff:") && normalized.includes(".")
+    ? normalized.slice(7)
+    : normalized;
+}
+
+export function ipMatches(clientIp: string, allowedIp: string) {
+  const client = normalizeIp(clientIp);
+  const allowed = normalizeIp(allowedIp);
+  if (!client || !allowed) return false;
+  if (client === allowed) return true;
+  if (!client.includes(":") || !allowed.includes(":")) return false;
+  const clientGroups = expandIpv6(client);
+  const allowedGroups = expandIpv6(allowed);
+  return (
+    !!clientGroups &&
+    !!allowedGroups &&
+    clientGroups.slice(0, 4).join(":") === allowedGroups.slice(0, 4).join(":")
+  );
+}
+
+export function isOnCompanyNetwork(clientIp: string | null, allowedIps: string[]) {
+  return !!clientIp && allowedIps.some((allowedIp) => ipMatches(clientIp, allowedIp));
+}

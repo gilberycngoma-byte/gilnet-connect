@@ -156,22 +156,6 @@ const attendanceBoardServer = createServerFn({ method: "GET" })
     };
   });
 
-const checkInServer = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<AttendanceRow> => {
-    const { data, error } = await context.supabase.rpc("gpm_check_in");
-    if (error) throw error;
-    return data as AttendanceRow;
-  });
-
-const checkOutServer = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<AttendanceRow> => {
-    const { data, error } = await context.supabase.rpc("gpm_check_out");
-    if (error) throw error;
-    return data as AttendanceRow;
-  });
-
 const listWorkShiftsServer = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input) => z.object({ date: DATE }).parse(input))
@@ -251,17 +235,47 @@ export async function attendanceBoard({
 }
 
 export async function checkIn(): Promise<AttendanceRow> {
-  if (usesGpmMobileApi()) {
-    return invokeGpmMobileApi<AttendanceRow>({ action: "attendance_check_in" });
-  }
-  return checkInServer();
+  return invokeGpmMobileApi<AttendanceRow>({ action: "attendance_check_in" });
 }
 
 export async function checkOut(): Promise<AttendanceRow> {
-  if (usesGpmMobileApi()) {
-    return invokeGpmMobileApi<AttendanceRow>({ action: "attendance_check_out" });
-  }
-  return checkOutServer();
+  return invokeGpmMobileApi<AttendanceRow>({ action: "attendance_check_out" });
+}
+
+export type AttendanceNetwork = {
+  id: string;
+  label: string;
+  ip_address: string;
+  created_at: string;
+};
+
+export type AttendanceNetworkStatus = {
+  ip: string | null;
+  configured: boolean;
+  allowed: boolean;
+};
+
+export async function attendanceNetworkStatus(): Promise<AttendanceNetworkStatus> {
+  return invokeGpmMobileApi<AttendanceNetworkStatus>({ action: "attendance_network_status" });
+}
+
+export async function listAttendanceNetworks(): Promise<AttendanceNetwork[]> {
+  return invokeGpmMobileApi<AttendanceNetwork[]>({ action: "list_attendance_networks" });
+}
+
+export async function currentAttendanceNetworkIp(): Promise<string | null> {
+  const result = await invokeGpmMobileApi<{ ip: string | null }>({
+    action: "current_attendance_network_ip",
+  });
+  return result.ip;
+}
+
+export async function addAttendanceNetwork({ data }: { data: { label: string } }) {
+  return invokeGpmMobileApi<{ id: string }>({ action: "add_attendance_network", data });
+}
+
+export async function deleteAttendanceNetwork({ data }: { data: { id: string } }) {
+  return invokeGpmMobileApi<{ ok: true }>({ action: "delete_attendance_network", data });
 }
 
 export async function listWorkShifts({ data }: { data: { date: string } }): Promise<WorkShift[]> {
