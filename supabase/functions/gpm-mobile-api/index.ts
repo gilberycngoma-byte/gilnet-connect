@@ -68,7 +68,7 @@ type OwnStaffPinInput = {
   newPin: string;
 };
 type ApiError = Error & { status: number };
-const GILNET_AUTH_CALLBACK = "gilnet://auth/callback";
+const GILNET_AUTH_CALLBACK = "gilnet://auth/callback?type=recovery";
 const attendanceDepartments = [
   "Housekeeping",
   "Food and Beverage",

@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   navigate,
   resetPasswordForEmail,
+  isNativePlatform,
   getSession,
   exchangeCodeForSession,
   from,
@@ -14,6 +15,7 @@ const {
 } = vi.hoisted(() => ({
   navigate: vi.fn(),
   resetPasswordForEmail: vi.fn(),
+  isNativePlatform: vi.fn(() => false),
   getSession: vi.fn(),
   exchangeCodeForSession: vi.fn(),
   from: vi.fn(),
@@ -31,13 +33,13 @@ vi.mock("@tanstack/react-router", () => ({
 
 vi.mock("@capacitor/app", () => ({
   App: {
-    addListener: vi.fn(),
-    getLaunchUrl: vi.fn(),
+    addListener: vi.fn(() => Promise.resolve({ remove: vi.fn() })),
+    getLaunchUrl: vi.fn(() => Promise.resolve({ url: null })),
   },
 }));
 
 vi.mock("@capacitor/core", () => ({
-  Capacitor: { isNativePlatform: () => false },
+  Capacitor: { isNativePlatform },
 }));
 
 vi.mock("@/components/gpm/UserAgreement", () => ({
@@ -94,6 +96,7 @@ beforeEach(() => {
   );
   navigate.mockReset();
   resetPasswordForEmail.mockReset().mockResolvedValue({ error: null });
+  isNativePlatform.mockReset().mockReturnValue(false);
   getSession.mockReset();
   exchangeCodeForSession.mockReset().mockResolvedValue({ error: null });
   from.mockReset();
@@ -121,6 +124,23 @@ describe("password recovery links", () => {
     expect(screen.getByText(/open the secure reset link/i)).toBeInTheDocument();
     expect(screen.queryByLabelText("New password")).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/recovery code/i)).not.toBeInTheDocument();
+  });
+
+  it("marks the native deep-link callback as password recovery", async () => {
+    isNativePlatform.mockReturnValue(true);
+    render(<LoginPage />);
+
+    fireEvent.change(screen.getByLabelText("Staff email address"), {
+      target: { value: "staff@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Forgot password?" }));
+    fireEvent.click(screen.getByRole("button", { name: "Send a password reset email" }));
+
+    await waitFor(() => {
+      expect(resetPasswordForEmail).toHaveBeenCalledWith("staff@example.com", {
+        redirectTo: "gilnet://auth/callback?type=recovery",
+      });
+    });
   });
 
   it("opens password fields after a recovery link restores the session", async () => {

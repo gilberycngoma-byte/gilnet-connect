@@ -17,7 +17,7 @@ const roles = [
   "Maintenance",
   "Restaurant",
 ] as const;
-const GILNET_AUTH_CALLBACK = "gilnet://auth/callback";
+const GILNET_AUTH_CALLBACK = "gilnet://auth/callback?type=recovery";
 const staffDepartmentForRole: Record<Role, StaffDepartment> = {
   Admin: "Admin",
   Manager: "Admin",

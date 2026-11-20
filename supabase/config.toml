@@ -9,6 +9,9 @@ verify_jwt = false
 [functions.password-login]
 verify_jwt = false
 
+[functions.gpm-passkeys]
+verify_jwt = false
+
 [functions.gpm-property-subscriptions]
 verify_jwt = true
 

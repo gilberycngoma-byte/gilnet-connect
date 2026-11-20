@@ -15,7 +15,7 @@ import { useEffect } from "react";
 
 import { Toaster } from "@/components/ui/sonner";
 import appCss from "../styles.css?url";
-import { initializeAuth, loadIdentity } from '@/lib/auth';
+import { hasPendingAdminOAuth, initializeAuth, loadIdentity } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { startSyncLoop, stopSync, resumeSync } from '@/lib/supabaseSync';
 import { registerOfflineApp } from '@/lib/pwa';
@@ -23,6 +23,7 @@ import { InstallAppProvider } from '@/components/gpm/InstallApp';
 import { APP_NAME } from "@/lib/version";
 import { getElectronBridge } from "@/lib/electron";
 import { keys, remove } from "@/lib/db";
+import { isPasswordRecoveryCallback } from "@/lib/auth-recovery";
 
 function NotFoundComponent() {
   return (
@@ -142,12 +143,7 @@ function RootComponent() {
       if (url.protocol !== "gilnet:" || url.hostname !== "auth" || url.pathname !== "/callback") {
         return;
       }
-      const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
-      const errorCode = url.searchParams.get("error_code") ?? hashParams.get("error_code");
-      const isRecovery =
-        url.searchParams.get("type") === "recovery" ||
-        hashParams.get("type") === "recovery" ||
-        errorCode?.startsWith("otp_") === true;
+      const isRecovery = isPasswordRecoveryCallback(url, hasPendingAdminOAuth());
       if (!isRecovery || !active || handledUrl === url.href) return;
       handledUrl = url.href;
 

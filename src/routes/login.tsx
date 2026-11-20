@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { App } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
+import { Fingerprint } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +17,7 @@ import {
   getRemembered,
   homeFor,
   login,
+  loginWithPasskey,
   type LoginMode,
 } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +30,7 @@ import { parseAuthIdentifier } from "@/lib/auth-identifier";
 import { UserAgreementGate } from "@/components/gpm/UserAgreement";
 import { PROPERTY_TYPES, type PropertyType } from "@/lib/types";
 import { fetchGpmAppContent } from "@/lib/gpm-app-content";
+import { canUsePasskeys } from "@/lib/passkeys";
 
 const DEFAULT_GPM_ABOUT_TEXT = `# What is GILNET GPM?
 
@@ -413,7 +416,7 @@ function LoginPageContent() {
         throw new Error("Enter your account login email address first.");
       const redirectTo =
         Capacitor.isNativePlatform() || getElectronBridge()
-          ? "gilnet://auth/callback"
+          ? "gilnet://auth/callback?type=recovery"
           : `${window.location.origin}/login?type=recovery`;
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(
         authIdentifier.email,
@@ -596,6 +599,19 @@ function LoginPageContent() {
     }
   };
 
+  const submitPasskey = async () => {
+    setError("");
+    setBusy(true);
+    try {
+      const session = await loginWithPasskey(code, remember, loginMode);
+      await finishSignIn(session);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not sign in with a passkey.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="gpm-login-shell flex min-h-screen flex-col items-center justify-center gap-6 bg-background px-4 py-10">
       <form
@@ -731,8 +747,8 @@ function LoginPageContent() {
           {mode === "login" && confirmation === null && (
             <p className="rounded-xl border border-brand-border bg-card/60 px-3 py-2 text-xs text-muted-foreground">
               {loginMode === "staff"
-                ? "Staff sign in with their email and password."
-                : "Sign in with your email and password."}
+                ? "Staff can use their email and password or a saved passkey."
+                : "Use your email and password or a saved passkey."}
             </p>
           )}
           <div>
@@ -876,6 +892,18 @@ function LoginPageContent() {
                     ? "Sign in"
                     : "Create Admin Account"}
           </Button>
+          {mode === "login" && confirmation === null && canUsePasskeys() && (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full rounded-full"
+              disabled={busy}
+              onClick={() => void submitPasskey()}
+            >
+              <Fingerprint className="mr-2 h-4 w-4" />
+              Sign in with a passkey
+            </Button>
+          )}
           {mode === "login" && confirmation === null && (
             <>
               <Button

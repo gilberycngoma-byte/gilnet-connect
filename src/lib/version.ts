@@ -1,8 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export const APP_NAME = "GILNET GPM CONNECT - Property Management System";
-export const APP_VERSION = "2.5.6";
-export const BUILD_DATE = "2026-11-17";
+export const APP_VERSION = "2.5.8";
+export const BUILD_DATE = "2026-11-20";
 export const MIN_SUPPORTED_VERSION = "2.0.0";
 export const SUPPORT_EMAIL = "support.gilnet.property.manager@gmail.com";
 

@@ -358,7 +358,7 @@ async function startBundledAppServer() {
   return createLocalAppServer({
     clientDirectory: path.join(appPath, "dist", "client"),
     serverEntry: path.join(appPath, "dist", "server", "server.js"),
-    host: "127.0.0.1",
+    host: "localhost",
     port: 41287,
     onRequestError: (error) => logStartup("Local GILNET request failed", error),
     onServerError: (error) => logStartup("Local GILNET server error", error),

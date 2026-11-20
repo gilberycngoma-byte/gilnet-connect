@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { hydrateLocalStorageFromIndexedDB, keys, read, remove, write, useStored } from "./db";
 import { deptForRole, type Property, type Role } from "./types";
 import { parseAuthIdentifier } from "./auth-identifier";
+import { authenticateWithPasskey } from "./passkeys";
 export type Session = {
   property_code: string;
   user_email: string;
@@ -243,6 +244,53 @@ export async function login(
   else clearRemembered();
   return s;
 }
+
+export async function loginWithPasskey(code: string, remember: boolean, mode: LoginMode) {
+  if (!code.trim()) throw new Error("Enter your property code.");
+  const tokenHash = await authenticateWithPasskey();
+  const { error } = await supabase.auth.verifyOtp({
+    token_hash: tokenHash,
+    type: "magiclink",
+  });
+  if (error) throw error;
+
+  let session: Session | null;
+  try {
+    session = await loadIdentity(remember, code);
+  } catch (error) {
+    await logout();
+    throw error;
+  }
+  if (!session) {
+    await logout();
+    throw new Error("Your account is not assigned to a property yet. Contact your administrator.");
+  }
+  if (!isLoginModeAllowed(session.role, mode)) {
+    await logout();
+    throw new Error(
+      mode === "staff"
+        ? "This is a management account. Choose “Management.”"
+        : "This is a staff account. Choose “Staff.”",
+    );
+  }
+
+  if (remember) {
+    write(
+      keys.remembered,
+      {
+        property_code: code.toUpperCase(),
+        email: session.user_email,
+        remember: true,
+        mode,
+      },
+      false,
+    );
+  } else {
+    clearRemembered();
+  }
+  return session;
+}
+
 export async function logout() {
   remove(keys.session);
   const { error } = await supabase.auth.signOut({ scope: "local" });
@@ -313,6 +361,9 @@ export function getPendingAdminOAuth(): PendingAdminOAuth | null {
   }
   storage.removeItem(ADMIN_OAUTH_STATE_KEY);
   throw new Error("The saved sign-in state is invalid. Start again from the login screen.");
+}
+export function hasPendingAdminOAuth() {
+  return Boolean(getSessionStorage()?.getItem(ADMIN_OAUTH_STATE_KEY));
 }
 export function clearPendingAdminOAuth() {
   getSessionStorage()?.removeItem(ADMIN_OAUTH_STATE_KEY);

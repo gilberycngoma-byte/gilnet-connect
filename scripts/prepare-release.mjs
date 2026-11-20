@@ -16,6 +16,7 @@ const versionPath = path.join(root, "src", "lib", "version.ts");
 const manifestPath = path.join(root, "public", "version.json");
 const installerBaseUrl = "https://qyawsbiipskhpstnemno.supabase.co/storage/v1/object/public/installers";
 const packageJson = JSON.parse(await readFile(packagePath, "utf8"));
+const currentVersion = packageJson.version;
 const packageLock = JSON.parse(await readFile(lockPath, "utf8"));
 const versionMatch = /^(\d+)\.(\d+)\.(\d+)$/.exec(packageJson.version);
 if (!versionMatch) throw new Error(`Invalid package version: ${packageJson.version}`);
@@ -37,7 +38,7 @@ if (bump === "major") {
 const version = `${major}.${minor}.${patch}`;
 
 const versionSource = await readFile(versionPath, "utf8");
-if (!versionSource.includes(`APP_VERSION = "${packageJson.version}"`)) {
+if (!versionSource.includes(`APP_VERSION = "${currentVersion}"`)) {
   throw new Error("package.json and src/lib/version.ts versions do not match.");
 }
 const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
@@ -55,7 +56,7 @@ manifest.publicUrl = `${installerBaseUrl}/GILNET-GPM-CONNECT-${version}-Setup.ex
 manifest.apkUrl = `${installerBaseUrl}/GILNET-GPM-CONNECT.apk`;
 
 const nextVersionSource = versionSource
-  .replace(`APP_VERSION = "${packageJson.version}"`, `APP_VERSION = "${version}"`)
+  .replace(`APP_VERSION = "${currentVersion}"`, `APP_VERSION = "${version}"`)
   .replace(/BUILD_DATE = "\d{4}-\d{2}-\d{2}"/, `BUILD_DATE = "${new Date().toISOString().slice(0, 10)}"`);
 await writeFile(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
 await writeFile(lockPath, `${JSON.stringify(packageLock, null, 2)}\n`, "utf8");

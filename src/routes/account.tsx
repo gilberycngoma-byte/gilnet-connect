@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { ROLES, type Property, type Role, type User } from "@/lib/types";
 import { UserAgreementReviewButton } from "@/components/gpm/UserAgreement";
 import { AppPreferencesPanel } from "@/components/gpm/AppPreferencesPanel";
+import { PasskeySettings } from "@/components/gpm/PasskeySettings";
 
 export const Route = createFileRoute("/account")({
   head: () => ({
@@ -272,6 +273,7 @@ export function AccountPage({ title = "Account" }: { title?: string }) {
           <Button variant="outline" className="rounded-full" disabled={!remembered} onClick={() => { clearRemembered(); setRemembered(false); }}>Clear Saved Login</Button>
           <UserAgreementReviewButton />
         </section>
+        <PasskeySettings />
 
         {can(session?.role, "users") && <SupabaseBackupPanel propertyCode={code} />}
 

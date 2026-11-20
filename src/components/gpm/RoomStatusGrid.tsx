@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { BellOff, Check, ChevronRight, Plus } from "lucide-react";
+import { BellOff, Check, ChevronDown, ChevronRight, Folder, FolderOpen, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -65,6 +65,7 @@ export function RoomStatusGrid({ mode = "all", title }: { mode?: "all" | "housek
   const sales = useStored<Sale[]>(keys.sales(code), []);
   const [active, setActive] = useState<Room | null>(null);
   const [search, setSearch] = useState("");
+  const [collapsedFloors, setCollapsedFloors] = useState<Record<string, boolean>>({});
   const [addRoomOpen, setAddRoomOpen] = useState(false);
   const [roomNumber, setRoomNumber] = useState("");
   const [roomType, setRoomType] = useState("Standard");
@@ -78,6 +79,16 @@ export function RoomStatusGrid({ mode = "all", title }: { mode?: "all" | "housek
   const today = new Date().toISOString().slice(0, 10);
   const reservedFor = (num: string) => reservations.find((r) => r.status === "Reserved" && r.preferred_room === num);
   const shown = rooms.filter((r) => `${r.number} ${roomLabel(r.number)} ${r.type} ${r.guestName ?? ""}`.toLowerCase().includes(search.toLowerCase()));
+  const groupedRooms = shown.reduce((groups, room) => {
+    const floor = room.floor?.trim() || "1";
+    const group = groups.get(floor) ?? [];
+    group.push(room);
+    groups.set(floor, group);
+    return groups;
+  }, new Map<string, Room[]>());
+  const floors = [...groupedRooms.entries()].sort(([a], [b]) =>
+    a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
+  );
   const current = active ? rooms.find((r) => r.number === active.number) ?? null : null;
   const openAddRoom = () => {
     setRoomNumber(nextRoomNumber(rooms));
@@ -100,6 +111,68 @@ export function RoomStatusGrid({ mode = "all", title }: { mode?: "all" | "housek
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not add the room.");
     }
+  };
+  const renderRoom = (room: Room) => {
+    const res = room.status === "Available" ? reservedFor(room.number) : undefined;
+    const stay = room.reservationId ? reservations.find((item) => item.id === room.reservationId) : undefined;
+    if (mode === "housekeeping") {
+      const status = room.status === "Available"
+        ? "Ready"
+        : room.status === "Dirty" || room.status === "Cleaning"
+          ? "Cleaning"
+          : room.status === "Out of Order"
+            ? "Maintenance"
+            : "In house";
+      return (
+        <button
+          type="button"
+          key={room.number}
+          onClick={() => setActive(room)}
+          aria-label={`Room ${roomLabel(room.number)}, ${status}`}
+          className="flex w-full items-center justify-between gap-4 px-4 py-5 text-left transition hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/40"
+        >
+          <span className="min-w-0">
+            <span className="block text-lg font-semibold">{unitLabel} {roomLabel(room.number)}</span>
+            <span className="mt-1 block text-sm text-muted-foreground">{room.type}</span>
+          </span>
+          <span className="flex min-w-32 items-center justify-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium">
+            {status}<ChevronRight className="h-4 w-4" />
+          </span>
+        </button>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        key={room.number}
+        onClick={() => setActive(room)}
+        aria-label={`${unitLabel} ${roomLabel(room.number)}, ${ROOM_LABEL[room.status]}`}
+        className={cn("flex min-h-36 min-w-0 flex-col items-start rounded-2xl p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/40", ROOM_STYLE[room.status])}
+      >
+        <span className="text-2xl font-extrabold leading-none">{unitLabel} {roomLabel(room.number)}</span>
+        <span className="mt-2 text-xs font-medium opacity-90">{room.type} · Floor {room.floor ?? "1"}</span>
+        <span className="mt-3 text-base font-bold">{ROOM_LABEL[room.status]}</span>
+        {room.status === "Occupied" && (
+          <>
+            <span className="mt-1 w-full truncate text-xs font-semibold uppercase">
+              {isApartment ? "Current occupant: " : ""}{room.guestName}
+            </span>
+            <span className="text-xs opacity-90">
+              {isApartment ? "Stay ends " : "Until "}
+              {res ? scheduledCheckout(res.check_out_date, res.check_out_time) : room.checkOut}
+            </span>
+            {stay && <>
+              <span className="text-xs opacity-90">Checked in {formatLocalDateTime(stay.confirmed_at) || "time not recorded"}</span>
+              <span className="text-xs opacity-90">{stay.payment_plan ?? paymentPlanFor(reservationPaid(stay), reservationTotal(stay))} · Balance {money(Math.max(0, roomFolio(stay, sales) - reservationPaid(stay)))}</span>
+            </>}
+            {room.serviced_at === today && <span className="mt-1 flex items-center gap-1 text-xs font-bold"><Check className="h-3.5 w-3.5" /> Serviced</span>}
+          </>
+        )}
+        {room.dnd && <span className="mt-1 flex items-center gap-1 text-xs font-bold"><BellOff className="h-3.5 w-3.5" /> Do Not Disturb</span>}
+        {res && <span className="mt-auto rounded-md bg-card/90 px-2 py-0.5 text-[11px] font-semibold text-foreground">Reserved: {res.guest_name} · {res.check_in_date}</span>}
+      </button>
+    );
   };
 
   return (
@@ -176,69 +249,42 @@ export function RoomStatusGrid({ mode = "all", title }: { mode?: "all" | "housek
         </DialogContent>
       </Dialog>
       {!shown.length && <p className="rounded-2xl border border-dashed p-10 text-center text-sm text-muted-foreground">{mode === "housekeeping" ? "No rooms need housekeeping right now." : "No rooms found."}</p>}
-      <div className={mode === "housekeeping" ? "divide-y overflow-hidden rounded-xl border bg-card" : "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6"}>
-        {shown.map((room) => {
-          const res = room.status === "Available" ? reservedFor(room.number) : undefined;
-          const stay = room.reservationId ? reservations.find((item) => item.id === room.reservationId) : undefined;
-          if (mode === "housekeeping") {
-            const status = room.status === "Available"
-              ? "Ready"
-              : room.status === "Dirty" || room.status === "Cleaning"
-                ? "Cleaning"
-                : room.status === "Out of Order"
-                  ? "Maintenance"
-                  : "In house";
+      {mode === "housekeeping" ? (
+        <div className="divide-y overflow-hidden rounded-xl border bg-card">{shown.map(renderRoom)}</div>
+      ) : (
+        <div className="space-y-4">
+          {floors.map(([floor, floorRooms], index) => {
+            const collapsed = collapsedFloors[floor] === true;
+            const roomsId = `room-floor-${index}-cards`;
             return (
-              <button
-                type="button"
-                key={room.number}
-                onClick={() => setActive(room)}
-                aria-label={`Room ${roomLabel(room.number)}, ${status}`}
-                className="flex w-full items-center justify-between gap-4 px-4 py-5 text-left transition hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/40"
-              >
-                <span className="min-w-0">
-                  <span className="block text-lg font-semibold">{unitLabel} {roomLabel(room.number)}</span>
-                  <span className="mt-1 block text-sm text-muted-foreground">{room.type}</span>
-                </span>
-                <span className="flex min-w-32 items-center justify-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium">
-                  {status}<ChevronRight className="h-4 w-4" />
-                </span>
-              </button>
+              <section key={floor} className="overflow-hidden rounded-2xl border border-brand-border bg-card">
+                <button
+                  type="button"
+                  aria-expanded={!collapsed}
+                  aria-controls={roomsId}
+                  onClick={() =>
+                    setCollapsedFloors((currentFloors) => ({
+                      ...currentFloors,
+                      [floor]: !currentFloors[floor],
+                    }))
+                  }
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {collapsed ? <Folder className="h-5 w-5 text-primary" /> : <FolderOpen className="h-5 w-5 text-primary" />}
+                  <span className="font-semibold">Floor {floor}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {floorRooms.length} {isApartment ? "apartment" : "room"}{floorRooms.length === 1 ? "" : "s"}
+                  </span>
+                  <ChevronDown className={cn("ml-auto h-4 w-4 transition-transform", collapsed && "-rotate-90")} />
+                </button>
+                <div id={roomsId} hidden={collapsed} className="grid grid-cols-2 gap-3 border-t border-brand-border p-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
+                  {floorRooms.map(renderRoom)}
+                </div>
+              </section>
             );
-          }
-          return (
-            <button
-              type="button"
-              key={room.number}
-              onClick={() => setActive(room)}
-              aria-label={`${unitLabel} ${roomLabel(room.number)}, ${ROOM_LABEL[room.status]}`}
-              className={cn("flex min-h-36 min-w-0 flex-col items-start rounded-2xl p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/40", ROOM_STYLE[room.status])}
-            >
-              <span className="text-2xl font-extrabold leading-none">{unitLabel} {roomLabel(room.number)}</span>
-              <span className="mt-2 text-xs font-medium opacity-90">{room.type} · Floor {room.floor ?? "1"}</span>
-              <span className="mt-3 text-base font-bold">{ROOM_LABEL[room.status]}</span>
-              {room.status === "Occupied" && (
-                <>
-                  <span className="mt-1 w-full truncate text-xs font-semibold uppercase">
-                    {isApartment ? "Current occupant: " : ""}{room.guestName}
-                  </span>
-                  <span className="text-xs opacity-90">
-                    {isApartment ? "Stay ends " : "Until "}
-                    {res ? scheduledCheckout(res.check_out_date, res.check_out_time) : room.checkOut}
-                  </span>
-                  {stay && <>
-                    <span className="text-xs opacity-90">Checked in {formatLocalDateTime(stay.confirmed_at) || "time not recorded"}</span>
-                    <span className="text-xs opacity-90">{stay.payment_plan ?? paymentPlanFor(reservationPaid(stay), reservationTotal(stay))} · Balance {money(Math.max(0, roomFolio(stay, sales) - reservationPaid(stay)))}</span>
-                  </>}
-                  {room.serviced_at === today && <span className="mt-1 flex items-center gap-1 text-xs font-bold"><Check className="h-3.5 w-3.5" /> Serviced</span>}
-                </>
-              )}
-              {room.dnd && <span className="mt-1 flex items-center gap-1 text-xs font-bold"><BellOff className="h-3.5 w-3.5" /> Do Not Disturb</span>}
-              {res && <span className="mt-auto rounded-md bg-card/90 px-2 py-0.5 text-[11px] font-semibold text-foreground">Reserved: {res.guest_name} · {res.check_in_date}</span>}
-            </button>
-          );
-        })}
-      </div>
+          })}
+        </div>
+      )}
       <RoomActionDialog
         room={current}
         reservations={reservations}

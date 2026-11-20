@@ -232,12 +232,14 @@ function AppShellContent({
   const propertyImage = property?.profile_image_url || property?.image_url;
   const unread = useUnreadTotal(code, deptForRole(session?.role), staffId);
   const notices = useStored<Notice[]>(keys.notices(code), []);
-  const noticeUnread = countUnreadNotices(
-    notices,
-    session.role,
-    preferences.checkInNotices,
-    session.user_email,
-  );
+  const noticeUnread = session
+    ? countUnreadNotices(
+        notices,
+        session.role,
+        preferences.checkInNotices,
+        session.user_email,
+      )
+    : 0;
   useEffect(() => {
     const electron = getElectronBridge();
     if (!electron) return;
@@ -256,6 +258,7 @@ function AppShellContent({
     unread,
   ]);
   const updateAvail = useUpdateAvailable();
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -363,6 +366,19 @@ function AppShellContent({
     if (property?.name) document.title = `${APP_NAME} - ${property.name}`;
   }, [property?.name, path]);
 
+  useEffect(() => {
+    setDesktopSidebarOpen(false);
+  }, [path]);
+
+  useEffect(() => {
+    if (!desktopSidebarOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setDesktopSidebarOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [desktopSidebarOpen]);
+
   if (!hydrated || !session)
     return (
       <div className="grid min-h-screen place-items-center bg-background">
@@ -378,7 +394,23 @@ function AppShellContent({
 
   return (
     <div className="gpm-mobile-shell flex min-h-screen bg-background">
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground p-4 md:flex">
+      {desktopSidebarOpen && (
+        <button
+          type="button"
+          aria-label="Close operations navigation"
+          className="fixed inset-0 z-30 hidden bg-black/30 md:block"
+          onClick={() => setDesktopSidebarOpen(false)}
+        />
+      )}
+      <aside
+        id="desktop-operations-sidebar"
+        aria-label="Desktop operations navigation"
+        aria-hidden={!desktopSidebarOpen}
+        className={cn(
+          "fixed inset-y-0 left-0 z-40 hidden h-screen w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar p-4 text-sidebar-foreground shadow-xl transition-transform duration-300 md:flex",
+          desktopSidebarOpen ? "visible translate-x-0" : "invisible -translate-x-full",
+        )}
+      >
         <PropertyHeader code={code} property={property} />
         <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/60">
           Operations
@@ -388,6 +420,7 @@ function AppShellContent({
             <Link
               key={n.to}
               to={n.to}
+              onClick={() => setDesktopSidebarOpen(false)}
               className={cn(
                 "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent",
                 path.startsWith(n.to) && "bg-sidebar-primary text-sidebar-primary-foreground",
@@ -418,6 +451,16 @@ function AppShellContent({
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 border-b border-[#1e4863] bg-gradient-to-r from-[#0b2b47] via-[#0d3551] to-[#0b6970] px-3 py-3 text-white shadow-sm md:gap-4 md:px-8 md:py-5 lg:grid-cols-[minmax(0,1fr)_minmax(240px,400px)_auto] lg:border-border lg:bg-card lg:text-foreground lg:shadow-none">
           <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              aria-label={desktopSidebarOpen ? "Close operations navigation" : "Open operations navigation"}
+              aria-expanded={desktopSidebarOpen}
+              aria-controls="desktop-operations-sidebar"
+              className="hidden h-10 w-10 shrink-0 place-items-center rounded-xl text-inherit hover:bg-muted/50 md:grid"
+              onClick={() => setDesktopSidebarOpen((open) => !open)}
+            >
+              <Menu className="h-5 w-5" />
+            </button>
             <button
               type="button"
               aria-label="Open all operations"
