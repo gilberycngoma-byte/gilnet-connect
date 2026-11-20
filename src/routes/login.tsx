@@ -27,6 +27,7 @@ import { migrateLocalData } from "@/lib/migrate";
 import { APP_NAME, APP_VERSION, SUPPORT_EMAIL } from "@/lib/version";
 import { InstallAppButton } from "@/components/gpm/InstallApp";
 import { parseAuthIdentifier } from "@/lib/auth-identifier";
+import { withPasswordRecoveryTimeout } from "@/lib/auth-recovery";
 import { UserAgreementGate } from "@/components/gpm/UserAgreement";
 import { PROPERTY_TYPES, type PropertyType } from "@/lib/types";
 import { fetchGpmAppContent } from "@/lib/gpm-app-content";
@@ -418,11 +419,10 @@ function LoginPageContent() {
         Capacitor.isNativePlatform() || getElectronBridge()
           ? "gilnet://auth/callback?type=recovery"
           : `${window.location.origin}/login?type=recovery`;
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-        authIdentifier.email,
-        {
+      const { error: resetError } = await withPasswordRecoveryTimeout(
+        supabase.auth.resetPasswordForEmail(authIdentifier.email, {
           redirectTo,
-        },
+        }),
       );
       if (resetError) throw resetError;
       setConfirmation("recovery");

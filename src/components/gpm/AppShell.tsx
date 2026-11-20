@@ -480,10 +480,10 @@ function AppShellContent({
               )}
             />
             <div className="min-w-0">
-              <p className="hidden truncate text-xl font-bold md:block">
+              <p className="hidden truncate text-xl font-bold text-white md:block">
                 {property?.name ?? APP_NAME}
               </p>
-              <p className="truncate text-[10px] font-medium uppercase tracking-wide text-white/75 md:hidden">
+              <p className="truncate text-[10px] font-medium uppercase tracking-wide text-white md:hidden">
                 {property?.name ?? APP_NAME}
               </p>
               <p className="truncate text-sm font-bold md:hidden">{title}</p>

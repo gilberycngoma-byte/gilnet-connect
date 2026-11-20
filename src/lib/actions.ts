@@ -140,12 +140,7 @@ export function postMessage(
     sender_id: senderId,
     sender_staff_id: senderId,
     recipient_type: recipientType,
-    receiver_type:
-      recipientType === "individual"
-        ? "specific"
-        : recipientType === "department"
-          ? "department"
-          : "all",
+    receiver_type: recipientType === "individual" ? "specific" : "all",
     receiver_id: receiverId,
     receiver_staff_id: recipientType === "individual" ? String(receiverId ?? "") || null : null,
     to_department: to,

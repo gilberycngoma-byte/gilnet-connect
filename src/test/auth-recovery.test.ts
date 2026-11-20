@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { isPasswordRecoveryCallback } from "@/lib/auth-recovery";
+import { describe, expect, it, vi } from "vitest";
+import { isPasswordRecoveryCallback, withPasswordRecoveryTimeout } from "@/lib/auth-recovery";
 
 describe("password recovery callback detection", () => {
   it("recognizes native PKCE codes when no provider sign-in is pending", () => {
@@ -21,5 +21,20 @@ describe("password recovery callback detection", () => {
         true,
       ),
     ).toBe(true);
+  });
+
+  it("reports a stalled password reset request", async () => {
+    vi.useFakeTimers();
+    try {
+      const request = new Promise<never>(() => {});
+      const result = withPasswordRecoveryTimeout(request, 100);
+      const rejection = expect(result).rejects.toThrow(
+        "The password reset request timed out. Check your inbox before trying again.",
+      );
+      await vi.advanceTimersByTimeAsync(100);
+      await rejection;
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
