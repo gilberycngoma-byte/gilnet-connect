@@ -7,10 +7,7 @@ import type { Reservation, Room } from './types';
 export const SALES_HEADERS = [
   'DATE', 'GUEST NAME', 'PAX', 'ROOM NO', 'ROOM TYPE', 'CHECK-IN', 'CHECK-OUT', 'NIGHTS',
   'ROOM RATE', 'LAUNDRY PRICE', 'LAUNDRY QTY', 'REVENUE', 'PAYMENT METHOD', 'STATUS',
-  'DISCOUNT', 'OCCUPANCY STATUS', 'RECEIPT NO', 'COMMENT', 'SCHEDULED CHECK-OUT TIME',
-  'ACTUAL CHECK-IN', 'CHECKED IN BY', 'CHECK-IN ROLE', 'ACTUAL CHECK-OUT',
-  'CHECKED OUT BY', 'CHECK-OUT ROLE', 'PAYMENT PLAN', 'AMOUNT PAID', 'BALANCE',
-  'DUE DATE', 'BALANCE REASON', 'EXTENSION HISTORY',
+  'RECEIPT NO',
 ] as const;
 
 export type SalesRow = {
@@ -127,14 +124,14 @@ export function buildSalesRows(rooms: Room[], reservations: Reservation[], sales
 
 const date = (s: string) => new Date(`${s}T00:00:00Z`);
 
-/** Builds the "Sales Report" workbook with live Excel formulas for nights, revenue and totals. */
+/** Builds the "Sales Report" workbook with live Excel formulas for nights and totals. */
 export async function buildSalesWorkbook(propertyName: string, rows: SalesRow[], from: string, to: string, printedBy = '') {
   const ExcelJS = (await import('exceljs')).default;
   const wb = new ExcelJS.Workbook();
   wb.creator = 'GILNET GPM CONNECT';
   const ws = wb.addWorksheet('Sales Report', { views: [{ state: 'frozen', ySplit: 4 }] });
   const font = { name: 'Arial', size: 10 };
-  ws.mergeCells('A1:AE1');
+  ws.mergeCells('A1:O1');
   ws.getCell('A1').value = `${propertyName} Room Status Sales Report`;
   ws.getCell('A1').font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
   ws.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
@@ -142,12 +139,12 @@ export async function buildSalesWorkbook(propertyName: string, rows: SalesRow[],
   for (let column = 1; column <= SALES_HEADERS.length; column++) {
     ws.getCell(1, column).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0D47A1' } };
   }
-  ws.mergeCells('A2:AE2');
+  ws.mergeCells('A2:O2');
   ws.getCell('A2').value = `Period: ${from} to ${to}`;
   ws.getCell('A2').font = { ...font, color: { argb: 'FF555555' } };
   ws.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' };
   ws.getRow(2).height = 22;
-  ws.mergeCells('A3:AE3');
+  ws.mergeCells('A3:O3');
   ws.getCell('A3').value = `Room status and sales details for stays overlapping the selected period${printedBy ? ` · Printed by ${printedBy}` : ''}`;
   ws.getCell('A3').font = { ...font, size: 9, italic: true, color: { argb: 'FF555555' } };
   ws.getCell('A3').alignment = { horizontal: 'center', vertical: 'middle' };
@@ -167,11 +164,8 @@ export async function buildSalesWorkbook(propertyName: string, rows: SalesRow[],
     row.values = [
       date(r.date), r.guest, r.pax, r.room, r.type, date(r.checkIn), date(r.checkOut),
       { formula: `G${n}-F${n}`, result: r.nights }, r.rate, r.laundryPrice, r.laundryQty,
-      { formula: `IF(M${n}="Complimentary",0,H${n}*I${n}+J${n}*K${n}-O${n})`, result: r.revenue },
-      r.method, r.status, r.discount, r.occupancy, r.receipt, r.comment, r.scheduledCheckOutTime,
-      r.actualCheckIn, r.checkedInBy, r.checkInRole, r.actualCheckOut, r.checkedOutBy,
-      r.checkOutRole, r.paymentPlan, r.amountPaid, r.balance, r.dueDate, r.balanceReason,
-      r.extensionHistory,
+      r.revenue,
+      r.method, r.status, r.receipt,
     ];
     row.font = { ...font, color: { argb: 'FF333333' } };
     row.eachCell({ includeEmpty: true }, (cell) => { cell.alignment = { vertical: 'top', wrapText: true }; });
@@ -186,7 +180,6 @@ export async function buildSalesWorkbook(propertyName: string, rows: SalesRow[],
   total.getCell(8).value = sum('H', rows.reduce((s, r) => s + r.nights, 0));
   total.getCell(11).value = sum('K', rows.reduce((s, r) => s + r.laundryQty, 0));
   total.getCell(12).value = sum('L', rows.reduce((s, r) => s + r.revenue, 0));
-  total.getCell(15).value = sum('O', rows.reduce((s, r) => s + r.discount, 0));
   total.font = { ...font, bold: true };
   total.eachCell({ includeEmpty: true }, (c) => { c.border = { top: { style: 'thin' }, bottom: { style: 'double' } }; });
   const paid = rows.filter((r) => r.status === 'Paid').reduce((s, r) => s + r.revenue, 0);
@@ -202,12 +195,12 @@ export async function buildSalesWorkbook(propertyName: string, rows: SalesRow[],
     row.font = { ...font, bold: true };
   });
   const money = '"K "#,##0.00;("K "#,##0.00);"-"';
-  ['I', 'J', 'L', 'O', 'AA', 'AB'].forEach((c) => { ws.getColumn(c).numFmt = money; });
+  ['I', 'J', 'L'].forEach((c) => { ws.getColumn(c).numFmt = money; });
   ws.getCell(`L${t + 4}`).numFmt = '0';
   ['A', 'F', 'G'].forEach((c) => { ws.getColumn(c).numFmt = 'yyyy-mm-dd'; });
-  [12, 24, 7, 9, 13, 12, 12, 8, 12, 13, 12, 14, 16, 10, 12, 17, 14, 28, 12, 22, 18, 14, 22, 18, 14, 14, 14, 14, 12, 24, 50].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+  [12, 24, 7, 9, 13, 12, 12, 8, 12, 13, 12, 14, 16, 10, 17].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
   for (let n = 4; n <= t; n++) ws.getRow(n).eachCell({ includeEmpty: true }, (c) => { c.border = { ...c.border, left: { style: 'thin', color: { argb: 'FFC8C8C8' } }, right: { style: 'thin', color: { argb: 'FFC8C8C8' } }, bottom: c.border?.bottom ?? { style: 'thin', color: { argb: 'FFC8C8C8' } } }; });
-  ws.autoFilter = { from: 'A4', to: 'AE4' };
+  ws.autoFilter = { from: 'A4', to: 'O4' };
   ws.pageSetup = {
     orientation: 'landscape',
     paperSize: 5,
@@ -215,7 +208,7 @@ export async function buildSalesWorkbook(propertyName: string, rows: SalesRow[],
     fitToWidth: 1,
     fitToHeight: 0,
     horizontalCentered: true,
-    printArea: `A1:AE${t + 4}`,
+    printArea: `A1:O${t + 4}`,
     printTitlesRow: '1:4',
     margins: { left: 0.25, right: 0.25, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 },
   };
@@ -253,10 +246,7 @@ export function generateSalesReportPdf(propertyName: string, rows: SalesRow[], f
       ? rows.map((r) => [
         r.date, r.guest, r.pax, r.room, r.type, r.checkIn, r.checkOut, r.nights,
         r.rate.toFixed(2), r.laundryPrice.toFixed(2), r.laundryQty, r.revenue.toFixed(2),
-        r.method, r.status, r.discount.toFixed(2), r.occupancy, r.receipt, r.comment,
-        r.scheduledCheckOutTime, r.actualCheckIn, r.checkedInBy, r.checkInRole, r.actualCheckOut,
-        r.checkedOutBy, r.checkOutRole, r.paymentPlan, r.amountPaid.toFixed(2), r.balance.toFixed(2),
-        r.dueDate, r.balanceReason, r.extensionHistory,
+        r.method, r.status, r.receipt,
       ])
       : [['No stays recorded for this period', ...Array(SALES_HEADERS.length - 1).fill('')]],
     theme: 'grid',

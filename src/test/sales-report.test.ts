@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { Reservation, Room } from "@/lib/types";
 import type { Sale } from "@/lib/restaurant";
-import { buildSalesRows, buildSalesWorkbook, generateSalesReportPdf, getMonthDateRange } from "@/lib/salesReport";
+import {
+  buildSalesRows,
+  buildSalesWorkbook,
+  generateSalesReportPdf,
+  getMonthDateRange,
+  SALES_HEADERS,
+} from "@/lib/salesReport";
 
 const rooms: Room[] = [{ number: "01", type: "Standard", status: "Occupied", price: 500 }];
 
@@ -135,6 +141,9 @@ describe("monthly room sales reports", () => {
 
     expect(worksheet?.getCell("A1").value).toBe("Lusaka Lodge Room Status Sales Report");
     expect(worksheet?.getCell("A1").alignment?.horizontal).toBe("center");
+    expect(worksheet?.getCell("O4").value).toBe("RECEIPT NO");
+    expect(worksheet?.getCell("P4").value).toBeNull();
+    expect(worksheet?.autoFilter?.to).toBe("O4");
     expect(worksheet?.pageSetup.orientation).toBe("landscape");
     expect(worksheet?.pageSetup.fitToWidth).toBe(1);
     expect(worksheet?.pageSetup.printTitlesRow).toBe("1:4");
@@ -145,6 +154,9 @@ describe("monthly room sales reports", () => {
     const report = generateSalesReportPdf("Lusaka Lodge", rows, "2026-10-01", "2026-10-31");
 
     expect(report.filename).toContain("2026-10-01_to_2026-10-31.pdf");
+    expect(SALES_HEADERS).toHaveLength(15);
+    expect(SALES_HEADERS.slice(0, 14)).not.toContain("RECEIPT NO");
+    expect(SALES_HEADERS[14]).toBe("RECEIPT NO");
     expect(report.doc.getNumberOfPages()).toBeGreaterThan(0);
   });
 });

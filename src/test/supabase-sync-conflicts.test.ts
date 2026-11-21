@@ -48,7 +48,11 @@ vi.mock("@/lib/privateMessages", () => ({
 }));
 
 import { keys } from "@/lib/db";
-import { synchronize, type SyncConflicts } from "@/lib/supabaseSync";
+import {
+  normalizeMessageReceiverForSync,
+  synchronize,
+  type SyncConflicts,
+} from "@/lib/supabaseSync";
 
 const propertyCode = "HOTEL1";
 const localChange = {
@@ -68,6 +72,18 @@ const defaultRemoteRow = {
   is_private: false,
 };
 let remoteRow: typeof defaultRemoteRow & { payload: Record<string, unknown> } = defaultRemoteRow;
+
+describe("message receiver sync compatibility", () => {
+  it.each([
+    ["department", "all"],
+    ["all_staffs", "all"],
+    ["individual", "specific"],
+  ])("converts legacy %s routing to the database receiver value", (legacy, expected) => {
+    expect(
+      normalizeMessageReceiverForSync({ receiver_type: legacy, to_department: "Housekeeping" }),
+    ).toMatchObject({ receiver_type: expected, to_department: "Housekeeping" });
+  });
+});
 
 beforeEach(() => {
   remoteRow = defaultRemoteRow;

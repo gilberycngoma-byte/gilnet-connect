@@ -6,6 +6,7 @@ const { pathToFileURL } = require("node:url");
 const googleDrive = require("./google-drive.cjs");
 const { createLocalAppServer } = require("./local-server.cjs");
 const { normalizePropertyId } = require("./property-code.cjs");
+const { ensurePropertyMetadata } = require("./property-folder.cjs");
 const {
   findAuthCallback,
   isAuthCallbackUrl,
@@ -383,29 +384,11 @@ async function ensurePropertyFolder(propertyId, propertyName) {
   ]);
 
   const propertyFile = path.join(folder, "property.json");
-  let createdAt = new Date().toISOString();
-  try {
-    const existing = JSON.parse(await fs.readFile(propertyFile, "utf8"));
-    if (
-      !existing ||
-      existing.propertyId !== code ||
-      typeof existing.createdAt !== "string" ||
-      Number.isNaN(Date.parse(existing.createdAt))
-    ) {
-      throw new Error(
-        "The local property.json file is invalid. The existing file was left unchanged.",
-      );
-    }
-    createdAt = existing.createdAt;
-  } catch (error) {
-    if (error && error.code !== "ENOENT") throw error;
+  const metadata = await ensurePropertyMetadata(propertyFile, code, name);
+  if (metadata.recoveredPath) {
+    logStartup("Recovered invalid local property metadata", metadata.recoveredPath);
   }
-  await fs.writeFile(
-    propertyFile,
-    JSON.stringify({ propertyId: code, propertyName: name, createdAt }, null, 2),
-    "utf8",
-  );
-  return { path: folder, databasePath, backupPath, createdAt };
+  return { path: folder, databasePath, backupPath, createdAt: metadata.createdAt };
 }
 
 async function savePropertyBackup(propertyId, propertyName, backup) {

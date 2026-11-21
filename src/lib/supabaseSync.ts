@@ -274,6 +274,17 @@ function rowId(kind: Kind, row: Row) {
   return String(kind === "rooms" ? row.number : row.id);
 }
 
+export function normalizeMessageReceiverForSync(payload: Row): Row {
+  const receiverType = payload.receiver_type ?? payload.recipient_type;
+  if (receiverType === "department" || receiverType === "all_staffs" || receiverType === "all") {
+    return { ...payload, receiver_type: "all" };
+  }
+  if (receiverType === "individual" || receiverType === "specific") {
+    return { ...payload, receiver_type: "specific" };
+  }
+  return payload;
+}
+
 function directConversationKey(code: string, row: Row) {
   const sender = row.sender_staff_id;
   const receiver = row.receiver_staff_id;
@@ -489,7 +500,9 @@ export async function synchronize() {
       const result = await supabase.rpc("gpm_mutate", {
         p_kind: change.kind,
         p_id: change.id,
-        p_payload: change.payload as Json,
+        p_payload: (change.kind === "messages"
+          ? normalizeMessageReceiverForSync(change.payload)
+          : change.payload) as Json,
         p_revision: revisions[key] ?? 0,
         p_deleted: change.deleted,
       });
